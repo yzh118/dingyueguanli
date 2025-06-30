@@ -1,0 +1,16 @@
+{
+    "sources": [
+        {
+            "id": "default",
+            "name": "默认订阅源",
+            "url": "",
+            "decode_type": "base64",
+            "enabled": true,
+            "card_required": false
+        }
+    ],
+    "current_source": "default",
+    "multi_source_mode": "single",
+    "load_balancing": false,
+    "user_choice_enabled": false
+} 

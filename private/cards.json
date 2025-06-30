@@ -1,0 +1,22 @@
+{
+    "cards": [],
+    "settings": {
+        "global_card_required": false,
+        "card_expire_days": 30
+    },
+    "seo_settings": {
+        "seo_title": "订阅管理系统 - 专业的订阅获取服务",
+        "seo_description": "提供安全可靠的订阅获取服务，支持多种订阅源格式，用户友好的订阅管理系统",
+        "seo_keywords": "订阅,获取,管理,系统,订阅源,安全,可靠",
+        "seo_author": "订阅管理系统",
+        "og_title": "订阅管理系统 - 专业的订阅获取服务",
+        "og_description": "提供安全可靠的订阅获取服务，支持多种订阅源格式",
+        "og_image": "",
+        "og_type": "website",
+        "favicon_url": "",
+        "apple_touch_icon": "",
+        "bing_verification": "",
+        "google_verification": "",
+        "enable_sitemap": true
+    }
+} 

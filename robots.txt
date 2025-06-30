@@ -1,0 +1,31 @@
+User-agent: *
+Allow: /
+Allow: /获取订阅.php
+Allow: /seo_generator.php?sitemap
+
+# 禁止访问管理后台和API
+Disallow: /admin.php
+Disallow: /api.php
+Disallow: /frontend_api.php
+Disallow: /install.php
+Disallow: /private/
+
+# 禁止访问配置文件
+Disallow: /nginx.conf
+Disallow: /.htaccess
+Disallow: /robots.txt
+
+# 禁止访问日志和备份文件
+Disallow: /*.log
+Disallow: /*.bak
+Disallow: /*.backup
+
+# 禁止访问隐藏文件
+Disallow: /.*
+Disallow: /*~
+
+# Sitemap地址（请替换为你的实际域名）
+Sitemap: https://你的实际域名/seo_generator.php?sitemap
+
+# 爬取延迟（可选）
+Crawl-delay: 1 

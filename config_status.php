@@ -1,0 +1,1 @@
+// config_status.php - 配置状态检测 

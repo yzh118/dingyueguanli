@@ -1,0 +1,41 @@
+# 将这些配置添加到你的nginx配置文件中的server块内
+
+# 禁止直接访问json文件
+location ~* \.json$ {
+    deny all;
+    return 403;
+}
+
+# 保护private目录
+location ^~ /private/ {
+    deny all;
+    return 403;
+}
+
+# 保护PHP源文件，只允许指定的入口文件
+location ~ ^/(card_auth|get_source_content|install)\.php$ {
+    deny all;
+    return 403;
+}
+
+# 允许访问主要的PHP文件
+location ~ ^/(获取订阅|admin|api)\.php$ {
+    fastcgi_pass   unix:/var/run/php-fpm.sock;  # 根据你的PHP-FPM配置修改
+    fastcgi_index  index.php;
+    fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+    include        fastcgi_params;
+}
+
+# 添加安全headers
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header X-XSS-Protection "1; mode=block" always;
+add_header Referrer-Policy "same-origin" always;
+
+# 禁止目录列表
+autoindex off;
+
+# 如果访问目录下没有索引文件，返回403
+location / {
+    try_files $uri $uri/ =403;
+} 
