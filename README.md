@@ -1,5 +1,5 @@
 # 订阅管理系统
-## 中文-简体|[English](https://github.com/yzh118/dingyueguanli/blob/main/README_EN.md)
+### 中文-简体|[English](https://github.com/yzh118/dingyueguanli/blob/main/README_EN.md)
 一个功能完整、安全可靠的订阅管理系统，支持多种订阅源格式、卡密验证、用户组权限管理等功能。
 
 ## ✨ 功能特性
