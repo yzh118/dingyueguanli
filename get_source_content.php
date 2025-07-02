@@ -80,6 +80,32 @@ function readCards() {
     }
 }
 
+// 新增：读取分配次数统计
+function readAssignCount() {
+    $file = __DIR__ . '/private/source_assign_count.json';
+    if (!file_exists($file)) return [];
+    $json = file_get_contents($file);
+    return $json ? json_decode($json, true) : [];
+}
+
+// 新增：保存分配次数统计（带健壮性和报错）
+function saveAssignCount($data) {
+    $dir = __DIR__ . '/private';
+    if (!is_dir($dir)) {
+        if (!mkdir($dir, 0777, true)) {
+            error_log('无法创建private目录: ' . $dir);
+            throw new Exception('无法创建private目录: ' . $dir);
+        }
+    }
+    $file = $dir . '/source_assign_count.json';
+    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    $result = @file_put_contents($file, $json);
+    if ($result === false) {
+        error_log('无法写入分配统计文件: ' . $file);
+        throw new Exception('无法写入分配统计文件: ' . $file . '，请检查目录权限');
+    }
+}
+
 // 获取内容处理函数
 function getContentFromSource($source) {
     try {
@@ -131,6 +157,26 @@ function getContentFromSource($source) {
     } catch (Exception $e) {
         return "获取失败: " . $e->getMessage();
     }
+}
+
+// 随机选择一个可用的源
+function getRandomSource($sources, $hasCardAuth = false) {
+    $availableSources = [];
+    foreach ($sources['sources'] as $source) {
+        if (!$source['enabled']) continue;
+        
+        // 如果源需要卡密且用户没有卡密，跳过这个源
+        if ($source['card_required'] && !$hasCardAuth) continue;
+        
+        $availableSources[] = $source;
+    }
+    
+    if (empty($availableSources)) {
+        return null;
+    }
+    
+    // 随机选择一个源
+    return $availableSources[array_rand($availableSources)];
 }
 
 // 处理API请求
@@ -376,26 +422,68 @@ switch ($action) {
             }
             break;
             
+        case 'get_content':
+            $sources = readSources();
+            $hasCardAuth = isset($_SESSION['card_code']) && !empty($_SESSION['card_code']);
+            
+            // 用户选择模式下使用指定的源
+            $sourceId = $_POST['source_id'] ?? $sources['sources'][0]['id'];
+            $selectedSource = null;
+            foreach ($sources['sources'] as $source) {
+                if ($source['id'] === $sourceId) {
+                    $selectedSource = $source;
+                    break;
+                }
+            }
+            
+            if (!$selectedSource) {
+                echo json_encode(['error' => '订阅源不存在']);
+                break;
+            }
+            
+            // 检查源是否需要卡密认证
+            if ($selectedSource['card_required'] && !$hasCardAuth) {
+                echo json_encode(['error' => '此订阅源需要卡密认证']);
+                break;
+            }
+            
+            $content = getContentFromSource($selectedSource);
+            echo json_encode([
+                'success' => true,
+                'content' => $content,
+                'source' => $selectedSource
+            ]);
+            break;
+            
         default:
             // 处理普通的获取内容请求
             $sources = readSources();
-            $sourceId = $_POST['source_id'] ?? '';
-    
-    // 查找指定的订阅源
-    $target_source = null;
-    foreach ($sources['sources'] as $source) {
+            // 从JSON请求体中获取source_id
+            $input = json_decode(file_get_contents('php://input'), true);
+            $sourceId = $input['source_id'] ?? '';
+
+            // 查找指定的订阅源
+            $target_source = null;
+            foreach ($sources['sources'] as $source) {
                 if ($source['id'] === $sourceId && $source['enabled']) {
-            $target_source = $source;
-            break;
-        }
-    }
-    
-    if ($target_source) {
-        $content = getContentFromSource($target_source);
-        echo htmlspecialchars($content);
-    } else {
-        echo "订阅源不存在或已禁用";
-    }
+                    $target_source = $source;
+                    break;
+                }
+            }
+
+            if ($target_source) {
+                $content = getContentFromSource($target_source);
+                echo json_encode([
+                    'success' => true,
+                    'content' => $content,
+                    'source' => $target_source
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'error' => '订阅源不存在或已禁用'
+                ]);
+            }
             break;
 }
 

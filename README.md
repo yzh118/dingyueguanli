@@ -1,89 +1,220 @@
 # 订阅管理系统
-### 中文-简体|[English](https://github.com/yzh118/dingyueguanli/blob/main/README_EN.md)
-一个订阅管理系统，主要功能及设定介绍（全文省略API）：
-1. 前台，对应项目文件`获取订阅.php`，从订阅源URL实时获取数据供用户复制，可进行自定义处理，处理后的内容将呈现在预览框中供用户检验。
-2. 后台，对应项目文件`admin.php`，可在后台设置订阅源、卡密、系统设置、SEO设置。
-3. 卡密，可在 `后台>卡密管理` 中管理，v1.0.0 版本可设置访问权限、有效期、随机或自定义卡密、名称等内容。
-4. 系统设置，可在 `后台>系统设置` 中管理，v1.0.0 版本可修改用户名、密码，设置安全入口、全局卡密验证等设置。
-5. 安全入口、多源管理模式，可在 `后台>系统设置` 中管理，在 v1.0.0 版本中此类功能BUG频发，功能不健全、逻辑冲突，所以不建议在 v1.0.0 中进行设置。
-6. SEO设置，可在 `后台>SEO设置` 中管理，已较为成熟（不排除有BUG的可能），可设置：
-- 基础SEO信息
-    - Title
-    - Description
-    - Keywords
-    - Author
-    - 站点图标
-    - Apple Touch Icon URL
-- Open Graph信息
-    - OG标题
-    - OG描述
-    - OG图片
-    - OG类型
-- 更多测试功能（不完善）
-    - Bing 验证码
-    - Google 验证码
 
-7. 说明文档，对应项目文件`docs.md`，说明文档≠README，是给用户看的网站指南，由站长管理员在 `后台>说明文档` 中使用Markdown格式语法进行编辑。
-8. 重装系统，对应项目文件`install.php`，
-## 宝塔部署
-### 安装准备：
-- PHP 7.0 +
-- Nginx 1.10 +
-本项目部署简单、v1.0.0版本ZIP压缩包体积仅74KB，基本开箱即用，为保护重要JSON文件所以需要修改站点的 Nginx 配置文件，前台文件为 `获取订阅.php` ，所以也要修改默认站点 Nginx 配置文件来将它设置为正确的 index 页面。
-### 开始部署
-在 `宝塔->网站->PHP` 中添加一个新的站点，PHP 建议选择8.0，实际上7.0 +都可以，但是你要已安装该版本才能选择；完成后点击**确定**以完成添加站点。
-接着将压缩包放入网站目录如 `/www/wwwroot/你的站点目录名` ，后解压缩包即完成部署，但还要进行下一步 Nginx 配置操作。
-#### Nginx 配置
-在 v1.0.0 以后项目压缩包中会存在一个 `nginx.conf.example` 文件，这里面存放着 Nginx 配置模板，比如：
-```Nginx
-# 将这些配置添加到你的nginx配置文件中的server块内
+一个功能完整、安全可靠的订阅管理系统，支持多种订阅源格式、卡密验证、用户组权限管理等功能。
 
-# 禁止直接访问json文件
-location ~* \.json$ {
-    deny all;
-    return 403;
-}
+## ✨ 功能特性
 
-# 保护private目录
-location ^~ /private/ {
-    deny all;
-    return 403;
-}
+- 🔐 **安全认证**：支持卡密验证和用户组权限管理
+- 📡 **多源支持**：支持多种订阅源格式（Base64、明文等）
+- 👥 **用户组管理**：细粒度的权限控制和订阅源访问管理
+- 🎨 **美观界面**：现代化的响应式设计，支持移动端
+- 🔧 **后台管理**：完整的管理后台，支持所有功能配置
+- 📊 **数据统计**：实时统计订阅源和卡密使用情况
+- 🔍 **SEO优化**：完整的SEO设置和搜索引擎优化
+- 🛡️ **安全防护**：自定义后台路径，防止恶意访问
 
-# 保护PHP源文件，只允许指定的入口文件
-location ~ ^/(card_auth|get_source_content|install)\.php$ {
-    deny all;
-    return 403;
-}
+## 🚀 快速开始
 
-# 允许访问主要的PHP文件
-location ~ ^/(获取订阅|admin|api)\.php$ {
-    fastcgi_pass   unix:/var/run/php-fpm.sock;  # 根据你的PHP-FPM配置修改
-    fastcgi_index  index.php;
-    fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-    include        fastcgi_params;
-}
+### 环境要求
 
-# 添加安全headers
-add_header X-Content-Type-Options "nosniff" always;
-add_header X-Frame-Options "SAMEORIGIN" always;
-add_header X-XSS-Protection "1; mode=block" always;
-add_header Referrer-Policy "same-origin" always;
+- PHP 7.4 或更高版本
+- Web服务器（Apache/Nginx）
+- 支持JSON扩展
+- 支持cURL扩展（推荐）
 
-# 禁止目录列表
-autoindex off;
+### 安装步骤
 
-# 如果访问目录下没有索引文件，返回403
-location / {
-    try_files $uri $uri/ =403;
-} 
+1. **下载源码**
+   ```bash
+   git clone https://github.com/your-username/subscription-manager.git
+   cd subscription-manager
+   ```
+
+2. **上传到服务器**
+   将整个目录上传到你的Web服务器根目录
+
+3. **设置权限**
+   ```bash
+   chmod 755 private/
+   chmod 644 private/*.json
+   ```
+
+4. **访问安装页面**
+   在浏览器中访问：`http://示例：example.com/install.php`
+
+5. **完成安装**
+   按照安装向导完成初始配置
+
+### 默认登录信息
+
+- **用户名**: `admin`
+- **密码**: `123456`
+- **后台路径**: `admin.php`
+
+⚠️ **重要提醒**：首次登录后请立即修改默认密码和后台访问路径！
+
+## 📁 目录结构
+
 ```
-在 PHP 项目中找到添加的站点->设置->配置文件，这个就是站点的 Nginx 配置文件了，修改操作：
-- 对于新手，仅需将它们插入到配置文件的最后一个 `}` 右大括号之上即可。
+subscription-manager/
+├── admin.php                 # 后台管理页面
+├── api.php                   # API接口文件
+├── 获取订阅.php              # 前台订阅获取页面
+├── frontend_api.php          # 前台API接口
+├── card_auth.php             # 卡密验证接口
+├── get_source_content.php    # 订阅源内容获取
+├── seo_generator.php         # SEO生成器
+├── install.php               # 安装向导
+├── robots.txt                # 搜索引擎爬虫配置
+├── docs.md                   # 说明文档
+├── README.md                 # 项目说明（本文件）
+├── README_EN.md              # 英文说明
+├── DEVELOPER.md              # 开发文档
+├── private/                  # 私有数据目录
+│   ├── admin_config.json     # 管理员配置
+│   ├── cards.json           # 卡密和用户组数据
+│   └── sources.json         # 订阅源配置
+└── test_*.php               # 测试文件
+```
 
-- 找到全配置文件的第5行，或是`server`块中的第3行，应该能看到 `index` 指令，在其后面找到 `index.php` 将其改为 `获取订阅.php` 即完成配置；如若没有请手动添加。
+## ⚙️ 配置说明
 
-到这里就算配置完成了，点击下方绿色按钮“保存”即可保存配置文件，如果改废了也没关系，可以在“历史文件”中查看恢复到修改前版本。
-### 验证安装
-进入 `domain/install.php` 检测订阅管理系统及其依赖是否安装完成，如果后续你的项目文件严重损坏（但是JSON文件完好）可以使用一键下载并重新安装系统。
-- 注意！如果JSON文件损坏那么也无法恢复，所以改动系统文件一定要谨慎。
+### 管理员配置
+
+在后台"系统设置"中可以修改：
+- 管理员用户名和密码
+- 后台安全访问路径
+- 支持中文用户名和密码
+
+### 订阅源配置
+
+支持以下配置选项：
+- **名称**：订阅源显示名称
+- **URL**：订阅源地址
+- **处理方式**：Base64解码、编码或不处理
+- **状态**：启用或禁用
+- **卡密验证**：是否需要卡密验证
+
+### 卡密管理
+
+- **有效期设置**：-1表示永久有效，最高3650天
+- **用户组分配**：为卡密分配特定用户组
+- **订阅源权限**：限制卡密可访问的订阅源
+
+### SEO设置
+
+完整的SEO配置选项：
+- 网站标题、描述、关键词
+- Open Graph信息
+- 站点图标设置
+- 搜索引擎验证码
+
+## 🔧 高级配置
+
+### Nginx配置示例
+
+```nginx
+server {
+    listen 80;
+    server_name 示例：example.com;
+    root /path/to/subscription-manager;
+    index 获取订阅.php;
+
+    # 安全配置
+    location ~ /private/ {
+        deny all;
+    }
+
+    # PHP配置
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php7.4-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    # 静态文件缓存
+    location ~* \.(css|js|png|jpg|jpeg|gif|ico)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+### Apache配置示例
+
+```apache
+<VirtualHost *:80>
+    ServerName 示例：example.com
+    DocumentRoot /path/to/subscription-manager
+    
+    <Directory /path/to/subscription-manager>
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
+    # 保护私有目录
+    <Directory /path/to/subscription-manager/private>
+        Require all denied
+    </Directory>
+</VirtualHost>
+```
+
+### .htaccess配置
+
+```apache
+# 保护私有目录
+<Files "private/*">
+    Require all denied
+</Files>
+
+# 启用重写引擎
+RewriteEngine On
+
+# 强制HTTPS（可选）
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+```
+
+## 🔒 安全建议
+
+1. **修改默认密码**：首次登录后立即修改管理员密码
+2. **自定义后台路径**：设置复杂的后台访问路径
+3. **启用HTTPS**：使用SSL证书保护数据传输
+4. **定期备份**：定期备份 `private/` 目录下的配置文件
+5. **限制访问**：配置防火墙，限制不必要的访问
+6. **更新系统**：定期更新PHP和Web服务器版本
+
+## 🐛 故障排除
+
+### 常见问题
+
+**Q: 后台无法登录**
+A: 检查 `private/admin_config.json` 文件权限和内容
+
+**Q: 订阅源无法获取**
+A: 检查订阅源URL是否可访问，网络连接是否正常
+
+**Q: 卡密验证失败**
+A: 检查卡密是否有效，用户组权限是否正确
+
+**Q: SEO设置不生效**
+A: 检查 `private/cards.json` 中的 `seo_settings` 配置
+
+### 调试模式
+
+访问 `test_config.php` 查看配置状态：
+```
+http://示例：example.com/test_config.php
+```
+
+访问 `test_seo_simple.php` 测试SEO功能：
+```
+http://示例：example.com/test_seo_simple.php
+```
+
+⭐ 如果这个项目对你有帮助，请给我们一个星标！
+
+## 负载均衡功能说明
+
+当前版本已移除负载均衡相关功能，仅保留用户选择模式。如需恢复负载均衡，请参考 `负载均衡方案说明.md` 文档。 

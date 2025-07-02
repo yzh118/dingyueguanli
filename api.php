@@ -733,19 +733,21 @@ switch ($action) {
 
     case 'update_settings':
         $input = json_decode(file_get_contents('php://input'), true);
-        // 移除action参数，避免干扰其他参数
         unset($input['action']);
         
-        $cardsData = readCards();
-        $cardsData['settings'] = $cardsData['settings'] ?? [];
-        
-        // 直接合并参数到设置中
-        foreach ($input as $key => $value) {
-            $cardsData['settings'][$key] = $value;
+        $sourcesData = readSources();
+        // 只更新multi_source_mode、load_balancing、user_choice_enabled等相关字段
+        if (isset($input['multi_source_mode'])) {
+            $sourcesData['multi_source_mode'] = $input['multi_source_mode'];
         }
-        
+        if (isset($input['load_balancing'])) {
+            $sourcesData['load_balancing'] = $input['load_balancing'];
+        }
+        if (isset($input['user_choice_enabled'])) {
+            $sourcesData['user_choice_enabled'] = $input['user_choice_enabled'];
+        }
         try {
-            if (saveCards($cardsData)) {
+            if (saveSources($sourcesData)) {
                 echo json_encode(['success' => true, 'message' => '设置更新成功']);
             } else {
                 http_response_code(500);
@@ -1009,6 +1011,34 @@ if ($currentPath !== $ADMIN_PATH) {
             send_json(['success' => true]);
         } else {
             send_json(['success' => false, 'error' => '卡密不存在或不属于该用户组']);
+        }
+        break;
+
+    case 'delete_admin_entry':
+        $input = json_decode(file_get_contents('php://input'), true);
+        $old_entry = $input['old_entry'] ?? '';
+        if (empty($old_entry)) {
+            send_json(['success' => false, 'error' => '参数不完整']);
+            break;
+        }
+        $oldPhp = __DIR__ . '/' . basename($old_entry) . '.php';
+        if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $old_entry)) {
+            send_json(['success' => false, 'error' => '入口名不合法']);
+            break;
+        }
+        if (!file_exists($oldPhp)) {
+            send_json(['success' => false, 'error' => '文件不存在']);
+            break;
+        }
+        if ($old_entry === 'admin' || $old_entry === 'manage' || $old_entry === 'backend' || $old_entry === $currentConfig['admin_path']) {
+            // 允许删除常见入口名和旧入口，但不允许删除当前入口
+            if (unlink($oldPhp)) {
+                send_json(['success' => true, 'message' => '入口文件删除成功']);
+            } else {
+                send_json(['success' => false, 'error' => '删除失败']);
+            }
+        } else {
+            send_json(['success' => false, 'error' => '不允许删除该入口']);
         }
         break;
 

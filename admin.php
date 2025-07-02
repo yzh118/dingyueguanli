@@ -622,7 +622,7 @@ if (isset($_GET['logout'])) {
                                     <div class="form-text">支持中文密码，留空则不修改</div>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="admin-path" class="form-label">后台安全路径</label>
+                                    <label for="admin-path" class="form-label">后台安全入口</label>
                                     <input type="text" class="form-control" id="admin-path" name="admin_path" placeholder="请输入后台访问路径">
                                     <div class="form-text">例如：admin、manage、backend，建议使用复杂路径</div>
                                 </div>
@@ -631,46 +631,24 @@ if (isset($_GET['logout'])) {
                                 <h6>多源管理模式</h6>
                                 <div class="mb-3">
                                     <select class="form-select" name="multi_source_mode" id="multi_source_mode">
-                                        <option value="single">单一源模式</option>
-                                        <option value="load_balance">负载均衡模式</option>
                                         <option value="user_choice">用户选择模式</option>
                                     </select>
-                    </div>
-                    
+                                    <div class="form-text">用户选择模式：允许用户手动选择源</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>卡密系统设置</h6>
                                 <div class="mb-3">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="load_balancing" id="load_balancing">
-                                        <label class="form-check-label" for="load_balancing">
-                                            启用负载均衡
-                        </label>
+                                        <input class="form-check-input" type="checkbox" name="global_card_required" id="global_card_required">
+                                        <label class="form-check-label" for="global_card_required">
+                                            全局强制卡密认证
+                                        </label>
                                     </div>
-                    </div>
-                    
-                                <div class="mb-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="user_choice_enabled" id="user_choice_enabled">
-                                        <label class="form-check-label" for="user_choice_enabled">
-                                            启用用户选择功能
-                        </label>
-                    </div>
-                </div>
-                    </div>
-                    </div>
-                    
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>卡密系统设置</h6>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="global_card_required" id="global_card_required">
-                                <label class="form-check-label" for="global_card_required">
-                                    全局强制卡密认证
-                        </label>
-                    </div>
-                </div>
-                    </div>
-                </div>
-                
+                                </div>
+                            </div>
+                        </div>
+                        
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check"></i> 保存设置
                         </button>
@@ -1345,8 +1323,6 @@ if (isset($_GET['logout'])) {
                 if (sourceData.success) {
                     settings = sourceData.settings;
                     document.getElementById('multi_source_mode').value = settings.multi_source_mode;
-                    document.getElementById('load_balancing').checked = settings.load_balancing;
-                    document.getElementById('user_choice_enabled').checked = settings.user_choice_enabled;
                 }
                 
                 // 加载卡密设置
@@ -1742,9 +1718,7 @@ if (isset($_GET['logout'])) {
                     // 保存订阅源设置
                     const sourceRequestData = {
                         action: 'update_settings',
-                        multi_source_mode: formDataObj.multi_source_mode,
-                        load_balancing: formDataObj.load_balancing === 'on',
-                        user_choice_enabled: formDataObj.user_choice_enabled === 'on'
+                        multi_source_mode: formDataObj.multi_source_mode
                     };
                     
                     const sourceResponse = await fetch('api.php', {
@@ -1775,6 +1749,27 @@ if (isset($_GET['logout'])) {
                         loadSettings();
                         loadDashboardData();
                         showAlert('保存设置成功', 'success');
+                        // 自动删除旧入口php文件
+                        const oldPath = window._lastAdminPath || '';
+                        const newPath = formDataObj.admin_path;
+                        if (oldPath && newPath && oldPath !== newPath) {
+                            setTimeout(() => {
+                                fetch('api.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action: 'delete_admin_entry', old_entry: oldPath })
+                                }).then(r => r.json()).then(res => {
+                                    if (res.success) {
+                                        showAlert('旧入口已自动删除', 'success');
+                                    } else {
+                                        showAlert('旧入口删除失败：' + (res.error || ''), 'danger');
+                                    }
+                                }).catch(err => {
+                                    showAlert('旧入口删除请求异常', 'danger');
+                                });
+                            }, 3000);
+                        }
+                        window._lastAdminPath = newPath;
                     } else {
                         showAlert(adminData.error || sourceData.error || cardData.error || '保存设置失败', 'danger');
                     }

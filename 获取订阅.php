@@ -22,6 +22,7 @@ function checkSourceAccess($source) {
 }
 
 ?>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <?php 
@@ -82,11 +83,12 @@ function checkSourceAccess($source) {
         .result-content {
             white-space: pre-wrap;
             word-wrap: break-word;
-            height: 120px; /* 约6行的高度 */
+            height: 120px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 14px;
             line-height: 1.6;
+            color: #333;
         }
         .markdown-body {
             background-color: #ffffff;
@@ -139,14 +141,26 @@ function checkSourceAccess($source) {
             padding: 15px;
             margin-bottom: 20px;
             color: #1976d2;
+            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);
         }
         .source-info h3 {
             margin: 0 0 10px 0;
             font-size: 16px;
+            color: #1565c0;
+            font-weight: bold;
         }
         .source-info p {
-            margin: 5px 0;
+            margin: 8px 0;
             font-size: 14px;
+            color: #1976d2;
+            line-height: 1.6;
+        }
+        .source-info a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        .source-info a:hover {
+            text-decoration: underline;
         }
         .source-selector {
             background-color: #f8f9fa;
@@ -163,7 +177,6 @@ function checkSourceAccess($source) {
             position: relative;
             display: inline-block;
             width: 100%;
-            max-width: 300px;
         }
         .source-dropdown-btn {
             background: white;
@@ -200,26 +213,31 @@ function checkSourceAccess($source) {
             position: absolute;
             background: white;
             border: 2px solid #007bff;
-            border-top: none;
-            border-radius: 0 0 6px 6px;
+            border-radius: 6px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 1000;
             width: 100%;
-            max-height: 200px;
+            max-height: 300px;
             overflow-y: auto;
+            margin-top: 5px;
         }
         .source-dropdown-content.show {
             display: block;
         }
         .source-dropdown-item {
-            padding: 10px 15px;
+            padding: 12px 15px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
             border-bottom: 1px solid #f1f3f4;
             font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #495057;
         }
-        .source-dropdown-item:hover {
-            background-color: #f8f9fa;
+        .source-dropdown-item:hover:not(.disabled) {
+            background-color: #e3f2fd;
+            color: #1976d2;
         }
         .source-dropdown-item.selected {
             background-color: #e3f2fd;
@@ -230,12 +248,17 @@ function checkSourceAccess($source) {
             border-bottom: none;
         }
         .source-dropdown-item.disabled {
-            opacity: 0.5;
+            opacity: 0.7;
             cursor: not-allowed;
             background-color: #f8f9fa;
+            color: #6c757d;
         }
-        .source-dropdown-item.disabled:hover {
-            background-color: #f8f9fa;
+        .source-dropdown-item i {
+            font-size: 14px;
+            color: #dc3545;
+        }
+        .source-dropdown-item.disabled i {
+            color: #6c757d;
         }
         .loading {
             text-align: center;
@@ -385,564 +408,356 @@ function checkSourceAccess($source) {
                 font-size: 14px;
             }
         }
+
+        .error-message {
+            color: #dc3545;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 6px;
+            margin-top: 10px;
+            border: 1px solid #dc3545;
+        }
+
+        .error-message p {
+            margin: 0 0 10px 0;
+        }
+
+        .error-message .refresh-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .error-message .refresh-btn:hover {
+            background-color: #c82333;
+        }
+
+        /* 添加加载动画 */
+        @keyframes loading {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        .loading-text {
+            animation: loading 1.5s infinite;
+            text-align: center;
+            color: #1976d2;
+            font-size: 16px;
+            padding: 20px;
+        }
     </style>
-</head>
-<body>
-    <div class="container">
-        <?php
-        // 设置错误报告
-        error_reporting(E_ALL);
-        ini_set('display_errors', 1);
-        
-        // 读取卡密配置
-        function readCards() {
-            try {
-                $content = file_get_contents('private/cards.json');
-                if ($content === false) {
-                    throw new Exception("无法读取cards.json文件");
-                }
-                $data = json_decode($content, true);
-                
-                // 如果没有settings，添加默认设置
-                if (!isset($data['settings'])) {
-                    $data['settings'] = [
-                        'global_card_required' => false,
-                        'card_expire_days' => 30
-                    ];
-                }
-                
-                // 如果用户已登录，只返回当前用户的卡密信息
-                if (checkCardAccess() && isset($data['cards'])) {
-                    foreach ($data['cards'] as $card) {
-                        if ($card['card'] === $_SESSION['card_code']) {
-                            return [
-                                'card' => $card,
-                                'settings' => $data['settings']
-                            ];
-                        }
-                    }
-                    return ['error' => '卡密不存在'];
-                }
-                
-                // 如果用户未登录，只返回设置信息
-                return [
-                    'cards' => [],
-                    'settings' => $data['settings']
-                ];
-            } catch(Exception $e) {
-                return [
-                    'cards' => [],
-                    'settings' => [
-                        'global_card_required' => false,
-                        'card_expire_days' => 30
-                    ]
-                ];
-            }
-        }
-        
-        // 读取订阅源配置
-        function readSources() {
-            try {
-                $content = file_get_contents('private/sources.json');
-                if ($content === false) {
-                    throw new Exception("无法读取sources.json文件");
-                }
-                $data = json_decode($content, true);
-                
-                // 过滤掉需要卡密但用户未认证的订阅源
-                if (isset($data['sources'])) {
-                    $data['sources'] = array_filter($data['sources'], function($source) {
-                        return checkSourceAccess($source);
-                    });
-                }
-                
-                return $data;
-            } catch(Exception $e) {
-                return [
-                    'sources' => [
-                        [
-                            'id' => 'default',
-                            'name' => '默认订阅源',
-                            'url' => 'https://8-8-8-8.top/ukcc5495',
-                            'decode_type' => 'base64',
-                            'enabled' => true,
-                            'card_required' => false
-                        ]
-                    ],
-                    'current_source' => 'default',
-                    'multi_source_mode' => 'single',
-                    'load_balancing' => false,
-                    'user_choice_enabled' => false
-                ];
-            }
-        }
-        
-        // 获取内容处理函数
-        function getContentFromSource($source) {
-            // 检查访问权限
-            if (!checkSourceAccess($source)) {
-                return "访问受限：该订阅源需要卡密验证";
-            }
-            
-            try {
-                $ch = curl_init();
-                curl_setopt($ch, CURLOPT_URL, $source['url']);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                if (ini_get('open_basedir') == '' && !ini_get('safe_mode')) {
-                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                }
-                curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-                
-                $content = curl_exec($ch);
-                $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                $error = curl_error($ch);
-                curl_close($ch);
-                
-                if ($error) {
-                    throw new Exception("cURL错误: " . $error);
-                }
-                
-                if ($http_code !== 200) {
-                    throw new Exception("HTTP错误: " . $http_code);
-                }
-                
-                if (empty($content)) {
-                    throw new Exception("获取到的内容为空");
-                }
-                
-                // 根据配置处理内容
-                switch ($source['decode_type']) {
-                    case 'base64':
-                        $processed_content = base64_decode($content, true);
-                        if ($processed_content === false) {
-                            throw new Exception("Base64解码失败，内容可能不是有效的Base64编码");
-                        }
-                        return $processed_content;
-                        
-                    case 'base64_encode':
-                        return base64_encode($content);
-                        
-                    case 'none':
-                    default:
-                        return $content;
-                }
-                
-            } catch (Exception $e) {
-                return "获取失败: " . $e->getMessage();
-            }
-        }
-        
-        // 在获取内容之前，添加卡密验证
-        $cards = readCards();
-        $sources = readSources();
-        $current_source = null;
-        $processed_content = '';
-        $show_source_selector = false;
-        
-        // 根据模式选择订阅源
-        switch ($sources['multi_source_mode']) {
-            case 'load_balance':
-                // 负载均衡模式：随机选择启用的订阅源
-                $enabled_sources = array_filter($sources['sources'], function($source) {
-                    return $source['enabled'];
-                });
-                if (!empty($enabled_sources)) {
-                    $current_source = $enabled_sources[array_rand($enabled_sources)];
-                }
-                break;
-                
-            case 'user_choice':
-                // 用户选择模式：显示选择器
-                $show_source_selector = true;
-                // 默认选择第一个启用的源
-                foreach ($sources['sources'] as $source) {
-                    if ($source['enabled']) {
-                        $current_source = $source;
-                        break;
-                    }
-                }
-                break;
-                
-            case 'single':
-            default:
-                // 单一源模式：使用当前选中的源
-                foreach ($sources['sources'] as $source) {
-                    if ($source['id'] === $sources['current_source']) {
-                        $current_source = $source;
-                        break;
-                    }
-                }
-                break;
-        }
-        
-        // 如果没有找到当前源或当前源被禁用，使用第一个启用的源
-        if (!$current_source || !$current_source['enabled']) {
-            foreach ($sources['sources'] as $source) {
-                if ($source['enabled']) {
-                    $current_source = $source;
-                    break;
-                }
-            }
-        }
-        
-        // 如果还是没有找到，使用默认配置
-        if (!$current_source) {
-            $current_source = [
-                'id' => 'default',
-                'name' => '默认订阅源',
-                'url' => 'https://8-8-8-8.top/ukcc5495',
-                'decode_type' => 'base64',
-                'enabled' => true,
-                'card_required' => false
-            ];
-        }
-        
-        // 检查是否需要卡密验证
-        $need_card_auth = (isset($cards['settings']['global_card_required']) ? $cards['settings']['global_card_required'] : false) || 
-                         (isset($current_source['card_required']) ? $current_source['card_required'] : false);
-        
-        // 获取内容
-        if ($need_card_auth) {
-            $processed_content = "请先输入卡密验证后查看完整内容";
-        } else {
-            $processed_content = getContentFromSource($current_source);
-        }
-
-        // 获取说明文档内容
-        try {
-            $file_path = __DIR__ . '/docs.md';
-            if (!file_exists($file_path)) {
-                throw new Exception("文件不存在: " . $file_path);
-            }
-            if (!is_readable($file_path)) {
-                throw new Exception("文件无法读取，请检查权限: " . $file_path);
-            }
-            $markdown_content = file_get_contents($file_path);
-            if ($markdown_content === false) {
-                throw new Exception("无法读取说明文档文件");
-            }
-        } catch(Exception $e) {
-            $markdown_content = "获取说明文档失败: " . $e->getMessage();
-        }
-        
-        // 显示订阅源信息
-        $decode_types = [
-            'none' => '不处理',
-            'base64' => 'Base64解码',
-            'base64_encode' => 'Base64编码'
-        ];
-        ?>
-        
-        <?php if ($need_card_auth): ?>
-            <!-- 需要卡密验证时，只显示卡密验证区域 -->
-            <div class="card-auth-section">
-                <h3>🔐 卡密验证</h3>
-                <p style="margin-bottom: 25px; opacity: 0.9; font-size: 16px;">请输入有效卡密以查看完整内容</p>
-                <div class="input-group">
-                    <input type="text" class="form-control" id="cardCode" placeholder="请输入您的卡密" autocomplete="off">
-                    <button class="btn btn-primary" onclick="validateCard()">
-                        <i class="bi bi-check-circle"></i> 验证卡密
-                    </button>
-                </div>
-            </div>
-            
-            <div id="contentSection" style="display: none;">
-                <!-- 验证成功后通过AJAX加载的内容区域 -->
-            </div>
-            
-            <div class="section-title">📖 使用说明</div>
-            <div class="markdown-body" id="markdownContent">
-                正在加载说明文档...
-            </div>
-        <?php else: ?>
-            <!-- 不需要卡密验证时，显示完整内容 -->
-            <div class="source-info">
-                <h3>📡 当前订阅源</h3>
-                <p><strong>名称：</strong><?php echo htmlspecialchars($current_source['name']); ?></p>
-                <p><strong>URL：</strong><?php echo htmlspecialchars($current_source['url']); ?></p>
-                <p><strong>处理方式：</strong><?php echo $decode_types[$current_source['decode_type']] ?? $current_source['decode_type']; ?></p>
-                <p><strong>模式：</strong>
-                    <?php 
-                    $mode_names = [
-                        'single' => '单一源模式',
-                        'load_balance' => '负载均衡模式',
-                        'user_choice' => '用户选择模式'
-                    ];
-                    echo $mode_names[$sources['multi_source_mode']] ?? '未知模式';
-                    ?>
-                </p>
-            </div>
-            
-            <?php if ($show_source_selector): ?>
-            <div class="source-selector">
-                <h3>🔀 选择订阅源</h3>
-                <div class="source-dropdown">
-                    <button class="source-dropdown-btn" onclick="toggleDropdown()" id="dropdownBtn">
-                        <?php echo htmlspecialchars($current_source['name']); ?>
-                    </button>
-                    <div class="source-dropdown-content" id="dropdownContent">
-                        <?php foreach ($sources['sources'] as $source): ?>
-                            <?php if ($source['enabled']): ?>
-                                <div class="source-dropdown-item <?php echo ($source['id'] === $current_source['id']) ? 'selected' : ''; ?>" 
-                                     onclick="switchSource('<?php echo $source['id']; ?>', '<?php echo htmlspecialchars($source['name']); ?>')">
-                                    <?php echo htmlspecialchars($source['name']); ?>
-                                </div>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
-            
-            <button class="copy-btn" onclick="copyContent()">
-                复制最新节点
-            </button>
-            
-            <div class="result-box">
-                <div class="result-content" id="decodedContent"><?php echo htmlspecialchars($processed_content); ?></div>
-            </div>
-
-            <div class="section-title">📖 使用说明</div>
-            <div class="markdown-body" id="markdownContent">
-                正在加载说明文档...
-            </div>
-        <?php endif; ?>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
-        function copyContent() {
-            const contentSection = document.getElementById('contentSection');
-            const decodedContent = contentSection ? contentSection.querySelector('#decodedContent') : document.getElementById('decodedContent');
-            const content = decodedContent ? decodedContent.textContent : '';
-            const textArea = document.createElement('textarea');
-            textArea.value = content;
-            document.body.appendChild(textArea);
-            textArea.select();
-            
-            try {
-                document.execCommand('copy');
-                const copyBtn = contentSection ? contentSection.querySelector('.copy-btn') : document.querySelector('.copy-btn');
-                if (copyBtn) {
-                    copyBtn.textContent = '✅ 已复制!';
-                    copyBtn.classList.add('copied');
-                    
-                    setTimeout(() => {
-                        copyBtn.textContent = '复制最新节点';
-                        copyBtn.classList.remove('copied');
-                    }, 2000);
-                }
-            } catch (err) {
-                console.error('复制失败:', err);
-                alert('复制失败，请手动选择并复制内容。');
-            }
-            
-            document.body.removeChild(textArea);
-        }
+        let currentSourceId = null;
+        let currentSourceName = null;
+        let isCardVerified = <?php echo isset($_SESSION['card_code']) ? 'true' : 'false'; ?>;
 
-        function switchSource(sourceId, sourceName) {
-            // 显示加载状态
-            const contentSection = document.getElementById('contentSection');
-            const decodedContent = contentSection ? contentSection.querySelector('#decodedContent') : document.getElementById('decodedContent');
-            if (decodedContent) {
-                decodedContent.innerHTML = '正在加载订阅源内容...';
-            }
+        // 验证卡密
+        function verifyCard() {
+            const cardInput = document.getElementById('cardInput');
+            const card = cardInput.value.trim();
             
-            // 更新选中的源
-            const dropdownBtn = document.querySelector('.source-dropdown-btn');
-            if (dropdownBtn) {
-                dropdownBtn.textContent = sourceName;
-            }
-            
-            // 更新选中状态
-            const items = document.querySelectorAll('.source-dropdown-item');
-            items.forEach(item => item.classList.remove('selected'));
-            event.target.classList.add('selected');
-            
-            // 关闭下拉窗口
-            const dropdownContent = document.getElementById('dropdownContent');
-            if (dropdownContent) {
-                dropdownContent.classList.remove('show');
-            }
-            if (dropdownBtn) {
-                dropdownBtn.classList.remove('active');
-            }
-            
-            // 发送AJAX请求获取新内容
-            fetch('frontend_api.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'get_source_content',
-                    source_id: sourceId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (decodedContent) {
-                        decodedContent.textContent = data.content;
-                    }
-                } else {
-                    if (decodedContent) {
-                        decodedContent.innerHTML = '加载失败: ' + (data.error || '未知错误');
-                    }
-                }
-            })
-            .catch(error => {
-                if (decodedContent) {
-                    decodedContent.innerHTML = '加载失败: ' + error.message;
-                }
-            });
-        }
-
-        function toggleDropdown() {
-            const dropdownContent = document.getElementById('dropdownContent');
-            const dropdownBtn = document.getElementById('dropdownBtn');
-            
-            dropdownContent.classList.toggle('show');
-            dropdownBtn.classList.toggle('active');
-        }
-
-        // 点击外部关闭下拉窗口
-        document.addEventListener('click', function(event) {
-            const dropdown = document.querySelector('.source-dropdown');
-            const dropdownBtn = document.getElementById('dropdownBtn');
-            
-            if (!dropdown.contains(event.target)) {
-                document.getElementById('dropdownContent').classList.remove('show');
-                dropdownBtn.classList.remove('active');
-            }
-        });
-
-        // ESC键关闭下拉窗口
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                document.getElementById('dropdownContent').classList.remove('show');
-                document.getElementById('dropdownBtn').classList.remove('active');
-            }
-        });
-
-        // 渲染Markdown内容
-        document.addEventListener('DOMContentLoaded', function() {
-            const markdownContent = <?php echo json_encode($markdown_content); ?>;
-            document.getElementById('markdownContent').innerHTML = marked.parse(markdownContent);
-            
-            // 添加回车键验证功能
-            const cardCodeInput = document.getElementById('cardCode');
-            if (cardCodeInput) {
-                cardCodeInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        validateCard();
-                    }
-                });
-            }
-        });
-
-        function validateCard() {
-            const cardCode = document.getElementById('cardCode').value;
-            if (!cardCode) {
+            if (!card) {
                 alert('请输入卡密');
                 return;
             }
             
-            // 显示加载状态
-            const contentSection = document.getElementById('contentSection');
-            const validateBtn = document.querySelector('.card-auth-section .btn');
-            
-            if (validateBtn) {
-                validateBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 验证中...';
-                validateBtn.disabled = true;
-            }
-            
-            if (contentSection) {
-                contentSection.style.display = 'block';
-                contentSection.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="bi bi-hourglass-split" style="font-size: 24px; color: #007bff;"></i><br>正在验证卡密...</div>';
-            }
-            
-            // 发送验证请求
             fetch('frontend_api.php', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     action: 'verify_card',
-                    card: cardCode
-                })
+                    card: card
+                }),
+                credentials: 'same-origin'
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
-                    // 卡密验证成功，获取完整内容
-                    if (validateBtn) {
-                        validateBtn.innerHTML = '<i class="bi bi-check-circle"></i> 验证成功';
-                        validateBtn.style.background = 'linear-gradient(45deg, #28a745, #20c997)';
+                    const cardSection = document.getElementById('cardSection');
+                    if (cardSection) {
+                        cardSection.style.display = 'none';
                     }
-                    
-                    // 通过AJAX获取完整内容
-                    fetch('frontend_api.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ action: 'get_full_content' })
-                    })
-                    .then(response => response.text())
-                    .then(htmlContent => {
-                        if (contentSection) {
-                            contentSection.innerHTML = htmlContent;
-                        }
-                        
-                        // 滚动到内容区域
-                        setTimeout(() => {
-                            contentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }, 500);
-                    })
-                    .catch(error => {
-                        if (contentSection) {
-                            contentSection.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;"><i class="bi bi-exclamation-triangle"></i><br>获取内容失败: ' + error.message + '</div>';
-                        }
-                    });
+                    isCardVerified = true;
+                    initializeContent();
                 } else {
-                    // 卡密验证失败
-                    if (validateBtn) {
-                        validateBtn.innerHTML = '<i class="bi bi-check-circle"></i> 验证卡密';
-                        validateBtn.disabled = false;
-                    }
-                    
-                    if (contentSection) {
-                        contentSection.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;"><i class="bi bi-x-circle"></i><br>' + (data.error || '卡密验证失败') + '</div>';
-                    }
+                    throw new Error(data.error || '卡密验证失败');
                 }
             })
             .catch(error => {
-                if (validateBtn) {
-                    validateBtn.innerHTML = '<i class="bi bi-check-circle"></i> 验证卡密';
-                    validateBtn.disabled = false;
-                }
-                
-                if (contentSection) {
-                    contentSection.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;"><i class="bi bi-exclamation-triangle"></i><br>验证失败: ' + error.message + '</div>';
-                }
+                console.error('Error:', error);
+                alert(error.message);
             });
         }
-        
-        // 获取处理方式文本
-        function getDecodeTypeText(type) {
-            const types = {
-                'none': '不处理',
-                'base64': 'Base64解码',
-                'base64_encode': 'Base64编码'
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeContent();
+            
+            // 添加回车键验证功能
+            const cardInput = document.getElementById('cardInput');
+            if (cardInput) {
+                cardInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        verifyCard();
+                    }
+                });
+            }
+
+            // 加载并渲染Markdown内容
+            fetch('docs.md')
+                .then(response => response.text())
+                .then(markdown => {
+                    const markdownElement = document.getElementById('markdownContent');
+                    if (markdownElement) {
+                        // 配置marked选项
+                        marked.setOptions({
+                            breaks: true,  // 支持GitHub风格的换行
+                            gfm: true,     // 启用GitHub风格的Markdown
+                            headerIds: true // 为标题添加id
+                        });
+                        markdownElement.innerHTML = marked.parse(markdown);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading markdown:', error);
+                    const markdownElement = document.getElementById('markdownContent');
+                    if (markdownElement) {
+                        markdownElement.innerHTML = '加载说明文档失败: ' + error.message;
+                    }
+                });
+        });
+
+        // 初始化内容
+        function initializeContent() {
+            const contentArea = document.getElementById('contentSection');
+            if (!contentArea) {
+                console.error('Content section not found');
+                return;
+            }
+            
+            contentArea.innerHTML = '<div class="loading-text">正在加载内容...</div>';
+            
+            // 获取完整内容
+            fetch('frontend_api.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'get_full_content'
+                }),
+                credentials: 'same-origin'
+                })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // 更新页面内容
+                    contentArea.innerHTML = data.html;
+                    // 如果有可用的订阅源
+                    if (data.sources && data.sources.length > 0) {
+                        currentSourceId = data.sources[0].id;
+                        currentSourceName = data.sources[0].name;
+                        loadSourceContent(currentSourceId);
+                    }
+                } else {
+                    throw new Error(data.error || '加载内容失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                contentArea.innerHTML = `<div class="error-message">${error.message}</div>`;
+            });
+        }
+
+        // 加载订阅源内容
+        function loadSourceContent(sourceId) {
+            const contentElement = document.getElementById('decodedContent');
+            if (!contentElement) return;
+            
+            contentElement.textContent = '正在加载订阅源内容...';
+            let fetchOptions = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin'
             };
-            return types[type] || type;
+            if (typeof sourceId !== 'undefined') {
+                fetchOptions.body = JSON.stringify({ source_id: sourceId });
+            }
+            fetch('get_source_content.php', fetchOptions)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    contentElement.textContent = data.content;
+                    // 更新当前源信息
+                    if (data.source) {
+                        currentSourceId = data.source.id;
+                        currentSourceName = data.source.name;
+                        // 更新下拉按钮文本（如果在用户选择模式下）
+                        const dropdownBtn = document.getElementById('dropdownBtn');
+                        if (dropdownBtn) {
+                            dropdownBtn.textContent = data.source.name;
+                        }
+                    }
+                } else {
+                    throw new Error(data.error || '加载内容失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                contentElement.innerHTML = `<div class="error-message">
+                    <p>${error.message}</p>
+                    <button class="refresh-btn" onclick="loadSourceContent(${sourceId ? `'${sourceId}'` : ''})">
+                        <i class="bi bi-arrow-clockwise"></i> 重试
+                    </button>
+                </div>`;
+            });
+        }
+
+        // 切换源
+        function switchSource(sourceId, sourceName) {
+            if (sourceId === currentSourceId) return;
+            loadSourceContent(sourceId);
+            // 动态更新下拉高亮
+            setTimeout(() => {
+                const items = document.querySelectorAll('.source-dropdown-item');
+                items.forEach(item => {
+                    if (item.getAttribute('data-source-id') === sourceId) {
+                        item.classList.add('selected');
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+            }, 100);
+        }
+
+        // 复制内容
+        function copyContent() {
+            const content = document.getElementById('decodedContent');
+            if (!content) return;
+            
+            const text = content.textContent;
+            if (!text) {
+                alert('没有可复制的内容');
+                return;
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const copyBtn = document.querySelector('.copy-btn');
+                    copyBtn.classList.add('copied');
+                    copyBtn.innerHTML = '<i class="bi bi-check"></i> 复制成功';
+                    setTimeout(() => {
+                        copyBtn.classList.remove('copied');
+                        copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> 复制最新节点';
+                    }, 2000);
+                }).catch(err => {
+                    fallbackCopyTextToClipboard(text);
+                });
+            } else {
+                fallbackCopyTextToClipboard(text);
+            }
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('已复制到剪贴板');
+            } catch (err) {
+                alert('复制失败，请手动复制');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // 切换下拉菜单
+        function toggleDropdown() {
+            const dropdownContent = document.getElementById('dropdownContent');
+            const dropdownBtn = document.getElementById('dropdownBtn');
+            if (!dropdownContent || !dropdownBtn) return;
+            
+            const isActive = dropdownContent.classList.contains('show');
+            dropdownContent.classList.toggle('show');
+            dropdownBtn.classList.toggle('active');
+            
+            if (!isActive) {
+                // 添加点击外部关闭下拉菜单
+                document.addEventListener('click', closeDropdown);
+            }
+        }
+
+        // 关闭下拉菜单
+        function closeDropdown(event) {
+            const dropdownContent = document.getElementById('dropdownContent');
+            const dropdownBtn = document.getElementById('dropdownBtn');
+            if (!dropdownContent || !dropdownBtn) return;
+            
+            if (!event.target.closest('.source-dropdown')) {
+                dropdownContent.classList.remove('show');
+                dropdownBtn.classList.remove('active');
+                document.removeEventListener('click', closeDropdown);
+            }
+        }
+
+        // 显示卡密认证模态框
+        function showCardAuthModal() {
+            const cardSection = document.getElementById('cardSection');
+            if (cardSection) {
+                cardSection.style.display = 'block';
+                document.getElementById('cardInput').focus();
+            }
         }
     </script>
+</head>
+<body>
+    <div class="container">
+        <?php if (!checkCardAccess()): ?>
+        <div id="cardSection" class="card-auth-section">
+            <h3>请输入卡密以访问完整内容</h3>
+            <div class="input-group">
+                <input type="text" id="cardInput" class="form-control" placeholder="请输入您的卡密">
+                <button onclick="verifyCard()" class="btn">验证卡密</button>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <div id="contentSection" class="content-section">
+            <!-- 内容将通过JavaScript动态加载 -->
+        </div>
+
+        <!-- 使用说明文档 -->
+        <div class="section-title">📖 使用说明</div>
+        <div class="markdown-body" id="markdownContent">
+            正在加载说明文档...
+        </div>
+    </div>
 </body>
 </html> 
